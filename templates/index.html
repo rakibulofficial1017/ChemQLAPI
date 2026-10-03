@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ChemQL</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0f1115;
+            color: #e6e6e6;
+        }
+
+        header {
+            padding: 28px 40px;
+            border-bottom: 1px solid #292d35;
+            background: #151820;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: 0.5px;
+        }
+
+        header p {
+            margin: 6px 0 0;
+            color: #8f96a3;
+            font-size: 14px;
+        }
+
+        main {
+            width: min(1100px, 92%);
+            margin: 40px auto;
+        }
+
+        .query-section {
+            background: #151820;
+            border: 1px solid #292d35;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .query-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #aeb5c1;
+        }
+
+        .query-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .query-row input {
+            flex: 1;
+            padding: 13px 15px;
+            border: 1px solid #343944;
+            border-radius: 7px;
+            outline: none;
+            background: #0f1115;
+            color: #f0f0f0;
+            font-family: Consolas, monospace;
+            font-size: 14px;
+        }
+
+        .query-row input:focus {
+            border-color: #6c7cff;
+        }
+
+        .query-row button {
+            padding: 13px 22px;
+            border: none;
+            border-radius: 7px;
+            background: #6c7cff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .query-row button:hover {
+            background: #5969e8;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            background: #151820;
+            border: 1px solid #292d35;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .result-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid #292d35;
+            color: #aeb5c1;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        pre {
+            margin: 0;
+            padding: 20px;
+            min-height: 120px;
+            overflow-x: auto;
+            color: #d7dce5;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        footer {
+            width: min(1100px, 92%);
+            margin: 0 auto 30px;
+            color: #626975;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        @media (max-width: 650px) {
+            header {
+                padding: 22px;
+            }
+
+            main {
+                margin: 25px auto;
+            }
+
+            .query-row {
+                flex-direction: column;
+            }
+
+            .query-row button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>ChemQL</h1>
+        <p>A query language for chemical data</p>
+    </header>
+
+    <main>
+
+        <section class="query-section">
+            <form method="GET">
+                <label for="query">Query</label>
+
+                <div class="query-row">
+                    <input
+                        type="text"
+                        id="query"
+                        name="query"
+                        placeholder="search elements..."
+                        value="{{ request.args.get('query', '') }}"
+                        autocomplete="off"
+                    >
+
+                    <button type="submit">Run</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="result-section">
+            <div class="result-header">
+                Result
+            </div>
+
+            <div class="result">
+                {% if result_type == "ReturnTable" %}
+
+                    <table>
+                        <thead>
+                            <tr>
+                                {% for column in result.columns %}
+                                    <th>{{ column }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for row in result.rows %}
+                                <tr>
+                                    {% for value in row %}
+                                        <td>{{ value }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                {% elif result_type == "list" %}
+
+                    <ul>
+                        {% for item in result %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+
+                {% elif result_type == "dict" %}
+
+                    <table>
+                        <tbody>
+                            {% for key, value in result.items() %}
+                                <tr>
+                                    <th>{{ key }}</th>
+                                    <td>{{ value }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                {% elif result_type in ["str", "int", "float", "bool"] %}
+
+                    <div class="value">
+                        {{ result }}
+                    </div>
+
+                {% else %}
+
+                    <pre>{{ result }}</pre>
+
+                {% endif %}
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        ChemQL
+    </footer>
+
+</body>
+</html>
+
