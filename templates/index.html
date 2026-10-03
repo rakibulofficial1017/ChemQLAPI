@@ -23,6 +23,15 @@
             padding: 28px 40px;
             border-bottom: 1px solid #292d35;
             background: #151820;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 56px;
+            height: 56px;
+            object-fit: contain;
         }
 
         header h1 {
@@ -61,7 +70,7 @@
             gap: 10px;
         }
 
-        .query-row input {
+        .query-row textarea {
             flex: 1;
             padding: 13px 15px;
             border: 1px solid #343944;
@@ -71,10 +80,18 @@
             color: #f0f0f0;
             font-family: Consolas, monospace;
             font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
         }
 
-        .query-row input:focus {
+        .query-row textarea:focus {
             border-color: #6c7cff;
+        }
+
+        .query-hint {
+            margin: 10px 0 0;
+            color: #8f96a3;
+            font-size: 12px;
         }
 
         .query-row button {
@@ -107,6 +124,103 @@
             font-weight: bold;
         }
 
+        .result-content {
+            padding: 18px;
+        }
+
+        .record-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .record-card {
+            overflow: hidden;
+            border: 1px solid #292d35;
+            border-radius: 8px;
+            background: #101319;
+        }
+
+        .record-card h3 {
+            margin: 0;
+            padding: 14px 16px;
+            border-bottom: 1px solid #292d35;
+            font-size: 17px;
+        }
+
+        .element-summary {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .element-symbol {
+            display: grid;
+            place-items: center;
+            width: 48px;
+            height: 48px;
+            border: 1px solid #454d5b;
+            border-radius: 6px;
+            background: #1a202b;
+            color: #e6e6e6;
+            font-size: 22px;
+        }
+
+        .element-symbol small {
+            display: block;
+            font-size: 10px;
+            line-height: 1;
+        }
+
+        .record-fields,
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .record-fields th,
+        .record-fields td,
+        .result-table th,
+        .result-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #292d35;
+            text-align: left;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+        }
+
+        .record-fields th,
+        .result-table th {
+            color: #aeb5c1;
+            font-size: 13px;
+        }
+
+        .record-fields th {
+            width: 190px;
+        }
+
+        .record-fields tr:last-child th,
+        .record-fields tr:last-child td,
+        .result-table tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .structured-value {
+            margin: 0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            color: #d7dce5;
+            font: 12px/1.5 Consolas, "Courier New", monospace;
+        }
+
+        .result-list {
+            margin: 0;
+            padding-left: 22px;
+        }
+
+        .result-list li + li {
+            margin-top: 8px;
+        }
+
         pre {
             margin: 0;
             padding: 20px;
@@ -126,6 +240,15 @@
             color: #626975;
             font-size: 12px;
             text-align: center;
+        }
+
+        footer a {
+            color: #aeb5c1;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            color: #6c7cff;
         }
 
         @media (max-width: 650px) {
@@ -151,8 +274,11 @@
 <body>
 
     <header>
-        <h1>ChemQL</h1>
-        <p>A query language for chemical data</p>
+        <img class="logo" src="{{ url_for('static', filename='logo.png') }}" alt="ChemQL logo">
+        <div>
+            <h1>ChemQL</h1>
+            <p>A query language for chemical data</p>
+        </div>
     </header>
 
     <main>
@@ -162,89 +288,110 @@
                 <label for="query">Query</label>
 
                 <div class="query-row">
-                    <input
-                        type="text"
+                    <textarea
                         id="query"
                         name="query"
                         placeholder="search elements..."
-                        value="{{ request.args.get('query', '') }}"
+                        rows="4"
                         autocomplete="off"
-                    >
+                    >{{ request.args.get('query', '') }}</textarea>
 
                     <button type="submit">Run</button>
                 </div>
+                <p class="query-hint">Press Enter to run. Press Shift+Enter to add a line.</p>
             </form>
         </section>
 
-        <section class="result-section">
-            <div class="result-header">
-                Result
-            </div>
+        {% if result_type is defined %}
+            <section class="result-section">
+                <div class="result-header">
+                    Result
+                </div>
 
-            <div class="result">
-                {% if result_type == "ReturnTable" %}
+                <div class="result-content">
+                    {% if result.kind == "records" %}
+                        <div class="record-list">
+                            {% for record in result.records %}
+                                <article class="record-card">
+                                    {% if result.record_type == "Element" %}
+                                        <h3 class="element-summary">
+                                            <span class="element-symbol">
+                                                <span><small>{{ record.number }}</small>{{ record.symbol }}</span>
+                                            </span>
+                                            <span>{{ record.name }}</span>
+                                        </h3>
+                                    {% else %}
+                                        <h3>{{ record.name or record.formula or record.id }}</h3>
+                                    {% endif %}
 
-                    <table>
-                        <thead>
-                            <tr>
-                                {% for column in result.columns %}
-                                    <th>{{ column }}</th>
+                                    <table class="record-fields">
+                                        <tbody>
+                                            {% for key, value in record.items() %}
+                                                {% if not (result.record_type == "Element" and key in ["name", "symbol", "number"]) %}
+                                                    <tr>
+                                                        <th>{{ key.replace("_", " ")|title }}</th>
+                                                        <td>
+                                                            {% if value is mapping or (value is sequence and value is not string) %}
+                                                                <pre class="structured-value">{{ value|tojson(indent=2) }}</pre>
+                                                            {% else %}
+                                                                {{ value if value is not none else "—" }}
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% elif result.kind == "table" %}
+                        <table class="result-table">
+                            <thead>
+                                <tr>{% for column in result.columns %}<th>{{ column }}</th>{% endfor %}</tr>
+                            </thead>
+                            <tbody>
+                                {% for row in result.rows %}
+                                    <tr>
+                                        {% for value in row %}
+                                            <td>
+                                                {% if value is mapping or (value is sequence and value is not string) %}
+                                                    <pre class="structured-value">{{ value|tojson(indent=2) }}</pre>
+                                                {% else %}
+                                                    {{ value if value is not none else "—" }}
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
                                 {% endfor %}
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {% for row in result.rows %}
-                                <tr>
-                                    {% for value in row %}
-                                        <td>{{ value }}</td>
-                                    {% endfor %}
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-
-                {% elif result_type == "list" %}
-
-                    <ul>
-                        {% for item in result %}
-                            <li>{{ item }}</li>
-                        {% endfor %}
-                    </ul>
-
-                {% elif result_type == "dict" %}
-
-                    <table>
-                        <tbody>
-                            {% for key, value in result.items() %}
-                                <tr>
-                                    <th>{{ key }}</th>
-                                    <td>{{ value }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-
-                {% elif result_type in ["str", "int", "float", "bool"] %}
-
-                    <div class="value">
-                        {{ result }}
-                    </div>
-
-                {% else %}
-
-                    <pre>{{ result }}</pre>
-
-                {% endif %}
-            </div>
-        </section>
+                            </tbody>
+                        </table>
+                    {% elif result.kind == "list" %}
+                        <ul class="result-list">
+                            {% for item in result.items %}<li>{{ item }}</li>{% endfor %}
+                        </ul>
+                    {% elif result.kind == "value" %}
+                        <pre>{{ result.value }}</pre>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
 
     </main>
 
     <footer>
-        ChemQL
+        Created by <a href="https://github.com/rakibulofficial1017">Mohammad Rakibul Islam</a>
+        · <a href="https://github.com/rakibulofficial1017/ChemQLAPI">API source</a>
+        · <a href="https://github.com/rakibulofficial1017/ChemQL">ChemQL library</a>
     </footer>
 
+    <script>
+        document.getElementById("query").addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+                event.preventDefault();
+                event.currentTarget.form.requestSubmit();
+            }
+        });
+    </script>
 </body>
 </html>
-
