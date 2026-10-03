@@ -1,3 +1,60 @@
+{% macro render_value(value, field_name="") -%}
+    {% set image_url = none %}
+    {% if field_name in ["image", "bohr_model_image"] %}
+        {% if value is string and (value.startswith("https://") or value.startswith("http://")) %}
+            {% set image_url = value %}
+        {% elif value is mapping and value.get("url") is string and (value.get("url").startswith("https://") or value.get("url").startswith("http://")) %}
+            {% set image_url = value.get("url") %}
+        {% endif %}
+    {% endif %}
+
+    {% if image_url %}
+        <figure class="field-image">
+            <img src="{{ image_url }}" alt="{{ field_name.replace('_', ' ')|title }}" loading="lazy">
+            {% if value is mapping and value.get("attribution") %}
+                <figcaption>{{ value.get("attribution") }}</figcaption>
+            {% endif %}
+        </figure>
+    {% endif %}
+
+    {% if field_name == "bohr_model_3d" and value is string and value.startswith("https://") %}
+        <model-viewer
+            class="element-model"
+            src="{{ value }}"
+            camera-controls
+            auto-rotate
+            shadow-intensity="1"
+            loading="lazy"
+            alt="Interactive 3D Bohr model">
+        </model-viewer>
+        <a href="{{ value }}" target="_blank" rel="noopener noreferrer">Open 3D model source</a>
+    {% elif value is mapping %}
+        <table class="nested-table">
+            <tbody>
+                {% for nested_key, nested_value in value.items() %}
+                    <tr>
+                        <th>{{ nested_key.replace("_", " ")|title }}</th>
+                        <td>{{ render_value(nested_value, nested_key) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif value is sequence and value is not string %}
+        {% if value %}
+            <ul class="nested-list">
+                {% for item in value %}
+                    <li>{{ render_value(item, field_name) }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <span class="empty-value">—</span>
+        {% endif %}
+    {% elif value is string and (value.startswith("https://") or value.startswith("http://")) %}
+        <a href="{{ value }}" target="_blank" rel="noopener noreferrer">{{ value }}</a>
+    {% else %}
+        {{ value if value is not none and value != "" else "—" }}
+    {% endif %}
+{%- endmacro %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +62,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>ChemQL</title>
+    <script
+        type="module"
+        src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js">
+    </script>
 
     <style>
         * {
@@ -91,6 +152,50 @@
         .query-hint {
             margin: 10px 0 0;
             color: #8f96a3;
+            font-size: 12px;
+        }
+
+        .history-row,
+        .result-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 9px;
+        }
+
+        .history-row {
+            margin-top: 14px;
+        }
+
+        .history-row label {
+            margin: 0;
+        }
+
+        .history-row select,
+        .history-row button,
+        .result-actions button {
+            padding: 8px 11px;
+            border: 1px solid #343944;
+            border-radius: 6px;
+            background: #101319;
+            color: #d7dce5;
+            cursor: pointer;
+        }
+
+        .history-row select {
+            min-width: 180px;
+            max-width: 100%;
+        }
+
+        .history-row button:hover,
+        .result-actions button:hover {
+            border-color: #6c7cff;
+        }
+
+        .action-status {
+            min-height: 1em;
+            margin: 8px 0 0;
+            color: #aeb5c1;
             font-size: 12px;
         }
 
@@ -204,12 +309,74 @@
             border-bottom: 0;
         }
 
-        .structured-value {
-            margin: 0;
-            white-space: pre-wrap;
+        .nested-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .nested-table th,
+        .nested-table td {
+            padding: 7px 9px;
+            border-bottom: 1px solid #292d35;
+            text-align: left;
+            vertical-align: top;
             overflow-wrap: anywhere;
-            color: #d7dce5;
-            font: 12px/1.5 Consolas, "Courier New", monospace;
+        }
+
+        .nested-table th {
+            width: 150px;
+            color: #aeb5c1;
+            font-weight: normal;
+        }
+
+        .nested-table tr:last-child th,
+        .nested-table tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .nested-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .nested-list li + li {
+            margin-top: 5px;
+        }
+
+        .field-image {
+            margin: 0 0 10px;
+        }
+
+        .field-image img {
+            display: block;
+            max-width: min(100%, 440px);
+            max-height: 300px;
+            object-fit: contain;
+            border: 1px solid #343944;
+            border-radius: 6px;
+            background: #0f1115;
+        }
+
+        .field-image figcaption {
+            max-width: 600px;
+            margin-top: 6px;
+            color: #8f96a3;
+            font-size: 11px;
+        }
+
+        .element-model {
+            display: block;
+            width: min(100%, 560px);
+            height: 320px;
+            margin-bottom: 8px;
+            border: 1px solid #343944;
+            border-radius: 6px;
+            background: #0f1115;
+        }
+
+        .empty-value {
+            color: #8f96a3;
         }
 
         .result-list {
@@ -219,19 +386,6 @@
 
         .result-list li + li {
             margin-top: 8px;
-        }
-
-        pre {
-            margin: 0;
-            padding: 20px;
-            min-height: 120px;
-            overflow-x: auto;
-            color: #d7dce5;
-            font-family: Consolas, "Courier New", monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-            word-wrap: break-word;
         }
 
         footer {
@@ -299,13 +453,25 @@
                     <button type="submit">Run</button>
                 </div>
                 <p class="query-hint">Press Enter to run. Press Shift+Enter to add a line.</p>
+                <div class="history-row">
+                    <label for="query-history">Recent queries</label>
+                    <select id="query-history" aria-label="Recent queries">
+                        <option value="">Choose a previous query</option>
+                    </select>
+                    <button id="clear-history" type="button">Clear history</button>
+                </div>
+                <p id="action-status" class="action-status" role="status" aria-live="polite"></p>
             </form>
         </section>
 
         {% if result_type is defined %}
             <section class="result-section">
                 <div class="result-header">
-                    Result
+                    <div class="result-actions">
+                        <span>Result</span>
+                        <button id="copy-result" type="button">Copy terminal text</button>
+                        <button id="download-result" type="button">Download JSON</button>
+                    </div>
                 </div>
 
                 <div class="result-content">
@@ -330,13 +496,7 @@
                                                 {% if not (result.record_type == "Element" and key in ["name", "symbol", "number"]) %}
                                                     <tr>
                                                         <th>{{ key.replace("_", " ")|title }}</th>
-                                                        <td>
-                                                            {% if value is mapping or (value is sequence and value is not string) %}
-                                                                <pre class="structured-value">{{ value|tojson(indent=2) }}</pre>
-                                                            {% else %}
-                                                                {{ value if value is not none else "—" }}
-                                                            {% endif %}
-                                                        </td>
+                                                        <td>{{ render_value(value, key) }}</td>
                                                     </tr>
                                                 {% endif %}
                                             {% endfor %}
@@ -354,13 +514,7 @@
                                 {% for row in result.rows %}
                                     <tr>
                                         {% for value in row %}
-                                            <td>
-                                                {% if value is mapping or (value is sequence and value is not string) %}
-                                                    <pre class="structured-value">{{ value|tojson(indent=2) }}</pre>
-                                                {% else %}
-                                                    {{ value if value is not none else "—" }}
-                                                {% endif %}
-                                            </td>
+                                            <td>{{ render_value(value) }}</td>
                                         {% endfor %}
                                     </tr>
                                 {% endfor %}
@@ -368,13 +522,15 @@
                         </table>
                     {% elif result.kind == "list" %}
                         <ul class="result-list">
-                            {% for item in result.items %}<li>{{ item }}</li>{% endfor %}
+                            {% for item in result.items %}<li>{{ render_value(item) }}</li>{% endfor %}
                         </ul>
                     {% elif result.kind == "value" %}
-                        <pre>{{ result.value }}</pre>
+                        <div>{{ render_value(result.value) }}</div>
                     {% endif %}
                 </div>
             </section>
+            <script id="serialized-result" type="application/json">{{ serialized_result|tojson }}</script>
+            <script id="terminal-result" type="application/json">{{ terminal_text|tojson }}</script>
         {% endif %}
 
     </main>
@@ -386,7 +542,97 @@
     </footer>
 
     <script>
-        document.getElementById("query").addEventListener("keydown", (event) => {
+        const queryInput = document.getElementById("query");
+        const queryHistory = document.getElementById("query-history");
+        const statusMessage = document.getElementById("action-status");
+        const historyStorageKey = "chemql-query-history";
+        const historyLimit = 20;
+
+        function readHistory() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(historyStorageKey) || "[]");
+                return Array.isArray(stored)
+                    ? stored.filter((item) => typeof item === "string" && item.trim())
+                    : [];
+            } catch (error) {
+                statusMessage.textContent = "Could not read saved query history.";
+                return [];
+            }
+        }
+
+        function renderHistory() {
+            queryHistory.replaceChildren(new Option("Choose a previous query", ""));
+            for (const query of readHistory()) {
+                queryHistory.add(new Option(query, query));
+            }
+        }
+
+        function saveQuery(query) {
+            const normalized = query.trim();
+            if (!normalized) return;
+            const history = readHistory().filter((item) => item !== normalized);
+            history.unshift(normalized);
+            try {
+                localStorage.setItem(historyStorageKey, JSON.stringify(history.slice(0, historyLimit)));
+                renderHistory();
+            } catch (error) {
+                statusMessage.textContent = "Could not save query history in this browser.";
+            }
+        }
+
+        renderHistory();
+        queryHistory.addEventListener("change", () => {
+            if (queryHistory.value) queryInput.value = queryHistory.value;
+        });
+        document.getElementById("clear-history").addEventListener("click", () => {
+            try {
+                localStorage.removeItem(historyStorageKey);
+                renderHistory();
+                statusMessage.textContent = "Query history cleared.";
+            } catch (error) {
+                statusMessage.textContent = "Could not clear query history.";
+            }
+        });
+        queryInput.form.addEventListener("submit", () => saveQuery(queryInput.value));
+
+        const serializedResult = document.getElementById("serialized-result");
+        if (serializedResult) {
+            const resultText = JSON.stringify(JSON.parse(serializedResult.textContent), null, 2);
+            const terminalText = JSON.parse(document.getElementById("terminal-result").textContent);
+            document.getElementById("copy-result").addEventListener("click", async () => {
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(terminalText);
+                    } else {
+                        const temporaryInput = document.createElement("textarea");
+                        temporaryInput.value = terminalText;
+                        temporaryInput.setAttribute("readonly", "");
+                        temporaryInput.style.position = "fixed";
+                        temporaryInput.style.opacity = "0";
+                        document.body.append(temporaryInput);
+                        temporaryInput.select();
+                        const copied = document.execCommand("copy");
+                        temporaryInput.remove();
+                        if (!copied) throw new Error("Clipboard copy was not available.");
+                    }
+                    statusMessage.textContent = "ChemQL terminal text copied.";
+                } catch (error) {
+                    statusMessage.textContent = "Could not copy the result. Check browser clipboard permissions.";
+                }
+            });
+            document.getElementById("download-result").addEventListener("click", () => {
+                const file = new Blob([resultText], { type: "application/json" });
+                const url = URL.createObjectURL(file);
+                const downloadLink = document.createElement("a");
+                downloadLink.href = url;
+                downloadLink.download = "chemql-result.json";
+                downloadLink.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                statusMessage.textContent = "JSON download started.";
+            });
+        }
+
+        queryInput.addEventListener("keydown", (event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
                 event.preventDefault();
                 event.currentTarget.form.requestSubmit();

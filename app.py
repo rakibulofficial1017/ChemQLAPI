@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, render_template, request
-from chemql import *
+from chemql import Element, Molecule, Reaction, ReturnTable, Unknown, execute_query_text
 
 
 app = Flask(__name__)
@@ -90,6 +90,8 @@ def index():
     return render_template(
         "index.html",
         result=_prepare_html_result(result),
+        serialized_result=_serialize_result(result),
+        terminal_text=str(result),
         result_type=result_type,
         item_type=item_type
     )

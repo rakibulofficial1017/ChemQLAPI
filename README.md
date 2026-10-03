@@ -21,3 +21,11 @@ Send a query using the `query` parameter. Add `json=true` to receive JSON:
 ```text
 /?query=search%20elements&json=true
 ```
+
+The web interface renders nested lists and dictionaries as HTML, previews
+element images, and displays available element Bohr models in an interactive
+3D viewer with camera controls and auto-rotation. The viewer uses Google's
+`model-viewer` component from its CDN, so the browser needs internet access to
+load it. The page also copies the ChemQL terminal representation, downloads
+structured JSON results, and stores recent queries locally in the browser;
+history can be cleared from the page.
