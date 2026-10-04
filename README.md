@@ -3,14 +3,13 @@
 The Flask application, dependencies, templates, static files, and API tests live
 in this directory.
 
-From the `Language/` directory, install the ChemQL library and API dependency:
+Install the ChemQL library and API dependency:
 
 ```bash
-python -m pip install -e ./chemql
-python -m pip install -r api/requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-Start the development server from `Language/`:
+Start the development server:
 
 ```bash
 flask --app api.app run
